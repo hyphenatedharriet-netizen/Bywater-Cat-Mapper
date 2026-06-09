@@ -6,33 +6,43 @@
     <title>Bywater Cat Mapper</title>
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
-    <!-- Supabase Client -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         body, html { margin: 0; padding: 0; height: 100%; width: 100%; }
-        #map { height: 100vh; width: 100vw; }
+        #map { height: 100vh; width: 100vw; background: #ddd; }
         .popup-form { display: flex; flex-direction: column; gap: 8px; padding: 10px; }
+        input, button { padding: 5px; }
     </style>
 </head>
 <body>
     <div id="map"></div>
     <!-- Leaflet JS -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+    <!-- Supabase Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
-        // Supabase Initialization
-        const supabase = supabase.createClient(
-            'https://ofhjidgvufuehuugfksd.supabase.co',
-            'sb_publishable_nQ0TXS2hvA_0R1MyQvrgCg_2A3_jGW0'
-        );
+        console.log("Script loading...");
+        
+        // Initialize Supabase
+        const { createClient } = window.supabase;
+        const supabaseUrl = 'https://ofhjidgvufuehuugfksd.supabase.co';
+        const supabaseKey = 'sb_publishable_nQ0TXS2hvA_0R1MyQvrgCg_2A3_jGW0';
+        const supabase = createClient(supabaseUrl, supabaseKey);
+        
+        console.log("Supabase initialized");
 
-        // Initialize Map centered on 70117
+        // Initialize Map
         const map = L.map('map').setView([29.9625, -90.0435], 16);
+        console.log("Map initialized");
+        
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© OpenStreetMap'
         }).addTo(map);
+        
+        console.log("Tile layer added");
 
         // Click to add cat
         map.on('click', function(e) {
+            console.log("Map clicked at", e.latlng);
             const popupContent = document.createElement('div');
             popupContent.className = 'popup-form';
             popupContent.innerHTML = `
@@ -46,13 +56,31 @@
             popupContent.querySelector('#saveBtn').onclick = async () => {
                 const name = document.getElementById('catName').value;
                 const photo = document.getElementById('photoUrl').value;
-                const { error } = await supabase.from('Cats').insert([
-                    { cat_name: name, coordinates: `${e.latlng.lat},${e.latlng.lng}`, photo_url: photo }
-                ]);
-                if (error) alert("Error: " + error.message);
-                else { alert("Saved!"); map.closePopup(); }
+                
+                if (!name || !photo) {
+                    alert("Please fill in all fields");
+                    return;
+                }
+                
+                try {
+                    const { error } = await supabase.from('Cats').insert([
+                        { cat_name: name, coordinates: `${e.latlng.lat},${e.latlng.lng}`, photo_url: photo }
+                    ]);
+                    if (error) {
+                        console.error("Supabase error:", error);
+                        alert("Error: " + error.message);
+                    } else {
+                        alert("Saved!");
+                        map.closePopup();
+                    }
+                } catch (err) {
+                    console.error("Exception:", err);
+                    alert("Error: " + err.message);
+                }
             };
         });
+        
+        console.log("Script completed");
     </script>
 </body>
 </html>
