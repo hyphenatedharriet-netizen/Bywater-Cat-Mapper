@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Bywater Cat Mapper</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { margin: 0; padding: 0; }
+        #map { height: 100vh; width: 100vw; }
+        .popup-form { display: flex; flex-direction: column; gap: 10px; padding: 10px; }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+    <script>
+        const supabase = supabase.createClient(
+            'https://ofhjidgvufuehuugfksd.supabase.co',
+            'sb_publishable_nQ0TXS2hvA_0R1MyQvrgCg_2A3_jGW0'
+        );
+
+        const map = L.map('map').setView([29.9625, -90.0435], 16);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(map);
+
+        map.on('click', function(e) {
+            const popupContent = document.createElement('div');
+            popupContent.className = 'popup-form';
+            popupContent.innerHTML = `
+                <input type="text" id="catName" placeholder="Cat Name">
+                <input type="text" id="photoUrl" placeholder="Photo URL">
+                <button id="saveBtn">Save Cat</button>
+            `;
+            
+            const popup = L.popup().setLatLng(e.latlng).setContent(popupContent).openOn(map);
+            
+            popupContent.querySelector('#saveBtn').onclick = async () => {
+                const name = document.getElementById('catName').value;
+                const photo = document.getElementById('photoUrl').value;
+                const { error } = await supabase.from('Cats').insert([
+                    { cat_name: name, coordinates: `${e.latlng.lat},${e.latlng.lng}`, photo_url: photo }
+                ]);
+                if (error) alert("Error: " + error.message);
+                else { alert("Saved!"); map.closePopup(); }
+            };
+        });
+    </script>
+</body>
+</html>
