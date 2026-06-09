@@ -6,12 +6,15 @@
     <title>Bywater Cat Mapper</title>
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
+    <!-- Supabase Client (async) -->
+    <script async src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        html, body { height: 100%; width: 100%; }
+        html, body { height: 100%; width: 100%; font-family: Arial, sans-serif; }
         #map { height: 100vh; width: 100vw; background-color: #e0e0e0; }
+        #status { position: fixed; top: 10px; left: 10px; background: rgba(0,0,0,0.7); color: white; padding: 10px; border-radius: 4px; z-index: 1000; font-size: 12px; }
         .popup-form { display: flex; flex-direction: column; gap: 8px; padding: 10px; background: white; border-radius: 4px; }
-        input, button { padding: 8px; border: 1px solid #ccc; border-radius: 3px; }
+        input, button { padding: 8px; border: 1px solid #ccc; border-radius: 3px; font-size: 14px; }
         input[type="text"] { width: 100%; }
         input[type="file"] { width: 100%; }
         button { background: #007bff; color: white; border: none; cursor: pointer; }
@@ -19,34 +22,50 @@
     </style>
 </head>
 <body>
+    <div id="status">Loading Supabase...</div>
     <div id="map"></div>
 
     <!-- Leaflet JS -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
-    <!-- Supabase Client (async) -->
-    <script async src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
     <script>
         console.log("=== Bywater Cat Mapper Starting ===");
         
         let supabase = null;
+        const statusEl = document.getElementById('status');
         
-        // Wait for Supabase to load, then initialize
-        window.addEventListener('load', function() {
-            try {
-                if (window.supabase && window.supabase.createClient) {
+        // Wait for Supabase to load with timeout
+        async function initSupabase() {
+            let attempts = 0;
+            while (!window.supabase && attempts < 50) {
+                await new Promise(r => setTimeout(r, 100));
+                attempts++;
+            }
+            
+            if (window.supabase && window.supabase.createClient) {
+                try {
                     supabase = window.supabase.createClient(
                         'https://ofhjidgvufuehuugfksd.supabase.co',
                         'sb_publishable_nQ0TXS2hvA_0R1MyQvrgCg_2A3_jGW0'
                     );
                     console.log("✓ Supabase initialized");
+                    statusEl.textContent = "✓ Ready";
+                    statusEl.style.background = "rgba(0,128,0,0.7)";
+                } catch (error) {
+                    console.warn("Supabase init error:", error);
+                    statusEl.textContent = "✗ Supabase Error";
+                    statusEl.style.background = "rgba(255,0,0,0.7)";
                 }
-            } catch (error) {
-                console.warn("Supabase not available:", error);
+            } else {
+                console.warn("Supabase library not loaded");
+                statusEl.textContent = "✗ Supabase not loaded";
+                statusEl.style.background = "rgba(255,0,0,0.7)";
             }
-        });
+        }
         
-        // Initialize map immediately (don't wait for Supabase)
+        initSupabase();
+        
+        // Initialize map immediately
         try {
             const map = L.map('map').setView([29.9625, -90.0435], 16);
             console.log("✓ Map initialized");
@@ -84,11 +103,13 @@
                     }
                     
                     if (!supabase) {
-                        alert("Supabase still loading. Try again in a moment.");
+                        alert("Supabase is not connected. Please check your browser console for errors.");
                         return;
                     }
                     
                     try {
+                        statusEl.textContent = "Uploading...";
+                        
                         // Upload photo to Supabase
                         const fileName = `${Date.now()}_${photoFile.name}`;
                         const { data: uploadData, error: uploadError } = await supabase.storage
@@ -98,6 +119,7 @@
                         if (uploadError) {
                             console.error("Upload error:", uploadError);
                             alert("Error uploading photo: " + uploadError.message);
+                            statusEl.textContent = "✓ Ready";
                             return;
                         }
                         
@@ -120,16 +142,19 @@
                         if (dbError) {
                             console.error("Database error:", dbError);
                             alert("Error saving cat: " + dbError.message);
+                            statusEl.textContent = "✓ Ready";
                             return;
                         }
                         
                         console.log("Cat saved successfully!");
                         alert("Cat saved successfully!");
                         map.closePopup();
+                        statusEl.textContent = "✓ Ready";
                         
                     } catch (error) {
                         console.error("Error:", error);
                         alert("Error: " + error.message);
+                        statusEl.textContent = "✓ Ready";
                     }
                 };
             });
