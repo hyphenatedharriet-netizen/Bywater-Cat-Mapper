@@ -67,7 +67,13 @@
                     'sb_publishable_nQ0TXS2hvA_0R1MyQvrgCg_2A3_jGW0'
                 );
                 
-                updateStatus('✓ Supabase connected!', 'success');
+                // Sign in as anonymous user to allow writes
+                supabase.auth.signInAnonymously().then(() => {
+                    updateStatus('✓ Supabase connected!', 'success');
+                }).catch(err => {
+                    console.warn('Anonymous sign in not needed:', err);
+                    updateStatus('✓ Supabase connected!', 'success');
+                });
                 
             } catch (error) {
                 updateStatus(`ERROR: ${error.message}`, 'error');
@@ -141,7 +147,7 @@
                             .from('cat-photos')
                             .getPublicUrl(`cats/${fileName}`);
                         
-                        const { error: dbError } = await supabase.from('Cats').insert([
+                        const { error: dbError, data: dbData } = await supabase.from('Cats').insert([
                             { 
                                 cat_name: name, 
                                 coordinates: `${e.latlng.lat},${e.latlng.lng}`, 
