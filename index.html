@@ -6,13 +6,17 @@
     <title>Bywater Cat Mapper</title>
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
+    <!-- Supabase Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         html, body { height: 100%; width: 100%; }
         #map { height: 100vh; width: 100vw; background-color: #e0e0e0; }
         .popup-form { display: flex; flex-direction: column; gap: 8px; padding: 10px; background: white; border-radius: 4px; }
-        input { padding: 8px; border: 1px solid #ccc; border-radius: 3px; }
-        button { padding: 8px; background: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer; }
+        input, button { padding: 8px; border: 1px solid #ccc; border-radius: 3px; }
+        input[type="text"] { width: 100%; }
+        input[type="file"] { width: 100%; }
+        button { background: #007bff; color: white; border: none; cursor: pointer; }
         button:hover { background: #0056b3; }
     </style>
 </head>
@@ -24,6 +28,19 @@
     
     <script>
         console.log("=== Bywater Cat Mapper Starting ===");
+        
+        // Initialize Supabase
+        let supabase = null;
+        try {
+            const { createClient } = window.supabase;
+            supabase = createClient(
+                'https://ofhjidgvufuehuugfksd.supabase.co',
+                'sb_publishable_nQ0TXS2hvA_0R1MyQvrgCg_2A3_jGW0'
+            );
+            console.log("✓ Supabase initialized");
+        } catch (error) {
+            console.warn("Supabase not available:", error);
+        }
         
         // Initialize map
         try {
@@ -44,7 +61,7 @@
                 popupContent.className = 'popup-form';
                 popupContent.innerHTML = `
                     <input type="text" id="catName" placeholder="Cat Name">
-                    <input type="text" id="photoUrl" placeholder="Photo URL">
+                    <input type="file" id="catPhoto" accept="image/*" placeholder="Cat Photo">
                     <button id="saveBtn">Save Cat</button>
                 `;
                 
@@ -55,16 +72,61 @@
                 
                 popupContent.querySelector('#saveBtn').onclick = async () => {
                     const name = document.getElementById('catName').value;
-                    const photo = document.getElementById('photoUrl').value;
+                    const photoFile = document.getElementById('catPhoto').files[0];
                     
-                    if (!name || !photo) {
-                        alert("Please fill in all fields");
+                    if (!name || !photoFile) {
+                        alert("Please enter a cat name and upload a photo");
                         return;
                     }
                     
-                    console.log("Saving cat:", { name, photo, lat: e.latlng.lat, lng: e.latlng.lng });
-                    alert("Cat saved! (Local demo - Supabase not connected yet)");
-                    map.closePopup();
+                    try {
+                        if (!supabase) {
+                            alert("Supabase not connected. Photo saved locally only.");
+                            return;
+                        }
+                        
+                        // Upload photo to Supabase
+                        const fileName = `${Date.now()}_${photoFile.name}`;
+                        const { data: uploadData, error: uploadError } = await supabase.storage
+                            .from('cat-photos')
+                            .upload(`cats/${fileName}`, photoFile);
+                        
+                        if (uploadError) {
+                            console.error("Upload error:", uploadError);
+                            alert("Error uploading photo: " + uploadError.message);
+                            return;
+                        }
+                        
+                        console.log("Photo uploaded:", uploadData);
+                        
+                        // Get public URL
+                        const { data: urlData } = supabase.storage
+                            .from('cat-photos')
+                            .getPublicUrl(`cats/${fileName}`);
+                        
+                        // Save cat data to database
+                        const { error: dbError } = await supabase.from('Cats').insert([
+                            { 
+                                cat_name: name, 
+                                coordinates: `${e.latlng.lat},${e.latlng.lng}`, 
+                                photo_url: urlData.publicUrl 
+                            }
+                        ]);
+                        
+                        if (dbError) {
+                            console.error("Database error:", dbError);
+                            alert("Error saving cat: " + dbError.message);
+                            return;
+                        }
+                        
+                        console.log("Cat saved successfully!");
+                        alert("Cat saved successfully!");
+                        map.closePopup();
+                        
+                    } catch (error) {
+                        console.error("Error:", error);
+                        alert("Error: " + error.message);
+                    }
                 };
             });
             
