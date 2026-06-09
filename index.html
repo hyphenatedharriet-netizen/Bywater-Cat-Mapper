@@ -6,8 +6,6 @@
     <title>Bywater Cat Mapper</title>
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
-    <!-- Supabase Client -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         html, body { height: 100%; width: 100%; }
@@ -25,24 +23,30 @@
 
     <!-- Leaflet JS -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+    <!-- Supabase Client (async) -->
+    <script async src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
     <script>
         console.log("=== Bywater Cat Mapper Starting ===");
         
-        // Initialize Supabase
         let supabase = null;
-        try {
-            const { createClient } = window.supabase;
-            supabase = createClient(
-                'https://ofhjidgvufuehuugfksd.supabase.co',
-                'sb_publishable_nQ0TXS2hvA_0R1MyQvrgCg_2A3_jGW0'
-            );
-            console.log("✓ Supabase initialized");
-        } catch (error) {
-            console.warn("Supabase not available:", error);
-        }
         
-        // Initialize map
+        // Wait for Supabase to load, then initialize
+        window.addEventListener('load', function() {
+            try {
+                if (window.supabase && window.supabase.createClient) {
+                    supabase = window.supabase.createClient(
+                        'https://ofhjidgvufuehuugfksd.supabase.co',
+                        'sb_publishable_nQ0TXS2hvA_0R1MyQvrgCg_2A3_jGW0'
+                    );
+                    console.log("✓ Supabase initialized");
+                }
+            } catch (error) {
+                console.warn("Supabase not available:", error);
+            }
+        });
+        
+        // Initialize map immediately (don't wait for Supabase)
         try {
             const map = L.map('map').setView([29.9625, -90.0435], 16);
             console.log("✓ Map initialized");
@@ -61,7 +65,7 @@
                 popupContent.className = 'popup-form';
                 popupContent.innerHTML = `
                     <input type="text" id="catName" placeholder="Cat Name">
-                    <input type="file" id="catPhoto" accept="image/*" placeholder="Cat Photo">
+                    <input type="file" id="catPhoto" accept="image/*">
                     <button id="saveBtn">Save Cat</button>
                 `;
                 
@@ -79,12 +83,12 @@
                         return;
                     }
                     
+                    if (!supabase) {
+                        alert("Supabase still loading. Try again in a moment.");
+                        return;
+                    }
+                    
                     try {
-                        if (!supabase) {
-                            alert("Supabase not connected. Photo saved locally only.");
-                            return;
-                        }
-                        
                         // Upload photo to Supabase
                         const fileName = `${Date.now()}_${photoFile.name}`;
                         const { data: uploadData, error: uploadError } = await supabase.storage
