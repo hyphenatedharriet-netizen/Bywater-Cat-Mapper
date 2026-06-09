@@ -7,80 +7,74 @@
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
     <style>
-        body, html { margin: 0; padding: 0; height: 100%; width: 100%; }
-        #map { height: 100vh; width: 100vw; background: #ddd; }
-        .popup-form { display: flex; flex-direction: column; gap: 8px; padding: 10px; }
-        input, button { padding: 5px; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; width: 100%; }
+        #map { height: 100vh; width: 100vw; background-color: #e0e0e0; }
+        .popup-form { display: flex; flex-direction: column; gap: 8px; padding: 10px; background: white; border-radius: 4px; }
+        input { padding: 8px; border: 1px solid #ccc; border-radius: 3px; }
+        button { padding: 8px; background: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer; }
+        button:hover { background: #0056b3; }
     </style>
 </head>
 <body>
     <div id="map"></div>
+
     <!-- Leaflet JS -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
-    <!-- Supabase Client -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
     <script>
-        console.log("Script loading...");
+        console.log("=== Bywater Cat Mapper Starting ===");
         
-        // Initialize Supabase
-        const { createClient } = window.supabase;
-        const supabaseUrl = 'https://ofhjidgvufuehuugfksd.supabase.co';
-        const supabaseKey = 'sb_publishable_nQ0TXS2hvA_0R1MyQvrgCg_2A3_jGW0';
-        const supabase = createClient(supabaseUrl, supabaseKey);
-        
-        console.log("Supabase initialized");
-
-        // Initialize Map
-        const map = L.map('map').setView([29.9625, -90.0435], 16);
-        console.log("Map initialized");
-        
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap'
-        }).addTo(map);
-        
-        console.log("Tile layer added");
-
-        // Click to add cat
-        map.on('click', function(e) {
-            console.log("Map clicked at", e.latlng);
-            const popupContent = document.createElement('div');
-            popupContent.className = 'popup-form';
-            popupContent.innerHTML = `
-                <input type="text" id="catName" placeholder="Cat Name">
-                <input type="text" id="photoUrl" placeholder="Photo URL">
-                <button id="saveBtn">Save Cat</button>
-            `;
+        // Initialize map
+        try {
+            const map = L.map('map').setView([29.9625, -90.0435], 16);
+            console.log("✓ Map initialized");
             
-            const popup = L.popup().setLatLng(e.latlng).setContent(popupContent).openOn(map);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors',
+                maxZoom: 19
+            }).addTo(map);
+            console.log("✓ Tiles loaded");
             
-            popupContent.querySelector('#saveBtn').onclick = async () => {
-                const name = document.getElementById('catName').value;
-                const photo = document.getElementById('photoUrl').value;
+            // Click handler
+            map.on('click', function(e) {
+                console.log("Click detected at", e.latlng);
                 
-                if (!name || !photo) {
-                    alert("Please fill in all fields");
-                    return;
-                }
+                const popupContent = document.createElement('div');
+                popupContent.className = 'popup-form';
+                popupContent.innerHTML = `
+                    <input type="text" id="catName" placeholder="Cat Name">
+                    <input type="text" id="photoUrl" placeholder="Photo URL">
+                    <button id="saveBtn">Save Cat</button>
+                `;
                 
-                try {
-                    const { error } = await supabase.from('Cats').insert([
-                        { cat_name: name, coordinates: `${e.latlng.lat},${e.latlng.lng}`, photo_url: photo }
-                    ]);
-                    if (error) {
-                        console.error("Supabase error:", error);
-                        alert("Error: " + error.message);
-                    } else {
-                        alert("Saved!");
-                        map.closePopup();
+                const popup = L.popup()
+                    .setLatLng(e.latlng)
+                    .setContent(popupContent)
+                    .openOn(map);
+                
+                popupContent.querySelector('#saveBtn').onclick = async () => {
+                    const name = document.getElementById('catName').value;
+                    const photo = document.getElementById('photoUrl').value;
+                    
+                    if (!name || !photo) {
+                        alert("Please fill in all fields");
+                        return;
                     }
-                } catch (err) {
-                    console.error("Exception:", err);
-                    alert("Error: " + err.message);
-                }
-            };
-        });
-        
-        console.log("Script completed");
+                    
+                    console.log("Saving cat:", { name, photo, lat: e.latlng.lat, lng: e.latlng.lng });
+                    alert("Cat saved! (Local demo - Supabase not connected yet)");
+                    map.closePopup();
+                };
+            });
+            
+            console.log("✓ Click handler registered");
+            console.log("=== Ready! Click on the map to add a cat ===");
+            
+        } catch (error) {
+            console.error("Error initializing map:", error);
+            document.body.innerHTML = "<h1 style='color:red;padding:20px;'>Error: " + error.message + "</h1>";
+        }
     </script>
 </body>
 </html>
