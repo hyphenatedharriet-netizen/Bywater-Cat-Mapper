@@ -6,13 +6,11 @@
     <title>Bywater Cat Mapper</title>
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
-    <!-- Supabase Client (async) -->
-    <script async src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         html, body { height: 100%; width: 100%; font-family: Arial, sans-serif; }
         #map { height: 100vh; width: 100vw; background-color: #e0e0e0; }
-        #status { position: fixed; top: 10px; left: 10px; background: rgba(0,0,0,0.7); color: white; padding: 10px; border-radius: 4px; z-index: 1000; font-size: 12px; }
+        #status { position: fixed; top: 10px; left: 10px; background: rgba(0,0,0,0.7); color: white; padding: 10px 15px; border-radius: 4px; z-index: 1000; font-size: 12px; }
         .popup-form { display: flex; flex-direction: column; gap: 8px; padding: 10px; background: white; border-radius: 4px; }
         input, button { padding: 8px; border: 1px solid #ccc; border-radius: 3px; font-size: 14px; }
         input[type="text"] { width: 100%; }
@@ -22,11 +20,14 @@
     </style>
 </head>
 <body>
-    <div id="status">Loading Supabase...</div>
+    <div id="status">🔄 Initializing...</div>
     <div id="map"></div>
 
     <!-- Leaflet JS -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+    
+    <!-- Supabase JS -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.0.0"></script>
     
     <script>
         console.log("=== Bywater Cat Mapper Starting ===");
@@ -34,36 +35,29 @@
         let supabase = null;
         const statusEl = document.getElementById('status');
         
-        // Wait for Supabase to load with timeout
-        async function initSupabase() {
-            let attempts = 0;
-            while (!window.supabase && attempts < 50) {
-                await new Promise(r => setTimeout(r, 100));
-                attempts++;
-            }
-            
-            if (window.supabase && window.supabase.createClient) {
-                try {
-                    supabase = window.supabase.createClient(
-                        'https://ofhjidgvufuehuugfksd.supabase.co',
-                        'sb_publishable_nQ0TXS2hvA_0R1MyQvrgCg_2A3_jGW0'
-                    );
-                    console.log("✓ Supabase initialized");
-                    statusEl.textContent = "✓ Ready";
-                    statusEl.style.background = "rgba(0,128,0,0.7)";
-                } catch (error) {
-                    console.warn("Supabase init error:", error);
-                    statusEl.textContent = "✗ Supabase Error";
-                    statusEl.style.background = "rgba(255,0,0,0.7)";
+        // Initialize Supabase immediately
+        function initSupabase() {
+            try {
+                if (!window.supabase) {
+                    console.error("Supabase library not available");
+                    statusEl.textContent = "❌ Supabase library failed to load";
+                    return;
                 }
-            } else {
-                console.warn("Supabase library not loaded");
-                statusEl.textContent = "✗ Supabase not loaded";
+                
+                const { createClient } = window.supabase;
+                supabase = createClient(
+                    'https://ofhjidgvufuehuugfksd.supabase.co',
+                    'sb_publishable_nQ0TXS2hvA_0R1MyQvrgCg_2A3_jGW0'
+                );
+                console.log("✓ Supabase initialized successfully");
+                statusEl.textContent = "✓ Ready";
+                statusEl.style.background = "rgba(0,128,0,0.7)";
+            } catch (error) {
+                console.error("Supabase init error:", error);
+                statusEl.textContent = "❌ " + error.message;
                 statusEl.style.background = "rgba(255,0,0,0.7)";
             }
         }
-        
-        initSupabase();
         
         // Initialize map immediately
         try {
@@ -75,6 +69,11 @@
                 maxZoom: 19
             }).addTo(map);
             console.log("✓ Tiles loaded");
+            
+            // Wait a moment then init Supabase
+            setTimeout(() => {
+                initSupabase();
+            }, 500);
             
             // Click handler
             map.on('click', function(e) {
@@ -103,12 +102,12 @@
                     }
                     
                     if (!supabase) {
-                        alert("Supabase is not connected. Please check your browser console for errors.");
+                        alert("Supabase is not connected. Check the status indicator (top-left) or press F12 to see errors.");
                         return;
                     }
                     
                     try {
-                        statusEl.textContent = "Uploading...";
+                        statusEl.textContent = "📤 Uploading...";
                         
                         // Upload photo to Supabase
                         const fileName = `${Date.now()}_${photoFile.name}`;
@@ -147,7 +146,7 @@
                         }
                         
                         console.log("Cat saved successfully!");
-                        alert("Cat saved successfully!");
+                        alert("🐱 Cat saved successfully!");
                         map.closePopup();
                         statusEl.textContent = "✓ Ready";
                         
@@ -160,11 +159,11 @@
             });
             
             console.log("✓ Click handler registered");
-            console.log("=== Ready! Click on the map to add a cat ===");
             
         } catch (error) {
             console.error("Error initializing map:", error);
-            document.body.innerHTML = "<h1 style='color:red;padding:20px;'>Error: " + error.message + "</h1>";
+            statusEl.textContent = "❌ Map error: " + error.message;
+            statusEl.style.background = "rgba(255,0,0,0.7)";
         }
     </script>
 </body>
